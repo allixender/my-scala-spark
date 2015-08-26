@@ -4,11 +4,14 @@ assemblySettings
 
 name := """my-spark-cassandra"""
 
+val geotrellisVersion = "0.10.0-SNAPSHOT"
+
 version := "1.0-SNAPSHOT"
 
 // lazy val root = (project in file(".")).enablePlugins(PlayScala)
 
 scalaVersion := "2.10.4"
+
 
 libraryDependencies ++= Seq(
   "com.vividsolutions" % "jts" % "1.13",
@@ -20,7 +23,12 @@ libraryDependencies ++= Seq(
   "com.datastax.cassandra" % "cassandra-driver-core" % "2.1.5" exclude("org.xerial.snappy", "snappy-java"),
   "org.xerial.snappy"       	% "snappy-java"           % "1.1.1.7",
   "org.apache.spark" %% "spark-core" % "1.3.1" % "provided",
-  "com.datastax.spark" %% "spark-cassandra-connector" % "1.3.0" exclude("org.slf4j", "slf4j-api")
+  "com.datastax.spark" %% "spark-cassandra-connector" % "1.3.0" exclude("org.slf4j", "slf4j-api"),
+  "com.azavea.geotrellis" %% "geotrellis-raster" % geotrellisVersion,
+  "com.azavea.geotrellis" %% "geotrellis-vector" % geotrellisVersion,
+  "com.azavea.geotrellis" %% "geotrellis-gdal" % geotrellisVersion,
+  "com.azavea.geotrellis" %% "geotrellis-spark" % geotrellisVersion,
+  "com.azavea.geotrellis" %% "geotrellis-spark-etl" % geotrellisVersion
 )
 
 resolvers ++= Seq(

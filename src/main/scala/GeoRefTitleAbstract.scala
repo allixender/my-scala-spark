@@ -95,15 +95,15 @@ object serialObs extends Serializable {
   }
 
   def filterStopWords(rdd: RDD[Article]): RDD[Article] = {
-    rdd.filter{ article =>
+    rdd.filter { article =>
       !testNoTitleReverse(article.title)
-    }.filter{ article =>
+    }.filter { article =>
       !testNoAbstractReverse(article.textabs)
     }
   }
 
   def filterEmptyFullText(rdd: RDD[Article]): RDD[Article] = {
-    rdd.filter{ article =>
+    rdd.filter { article =>
       !article.fulltext.isEmpty
     }
   }
@@ -112,7 +112,7 @@ object serialObs extends Serializable {
 object serialGeo extends Serializable {
 
   def findGeoRefsInText(testString: String, bcgeo: Broadcast[Array[GeoName]]): List[GeoName] = {
-    val filtered = bcgeo.value.filter{ georef =>
+    val filtered = bcgeo.value.filter { georef =>
       testString.toLowerCase().contains(georef.name.toLowerCase())
     }.toList
     filtered
@@ -120,66 +120,66 @@ object serialGeo extends Serializable {
 
 }
 
-object GeoRefTitleAbstract {
+object GeoRefTitleAbstract extends App {
 
-  def notMain(args: Array[String]) {
+  val conf = new SparkConf(true).set("spark.cassandra.connection.host", "127.0.0.1")
+  val sc = new SparkContext("spark://127.0.0.1:7077", "test", conf)
 
-    val conf = new SparkConf(true).set("spark.cassandra.connection.host", "127.0.0.1")
-    val sc = new SparkContext("spark://127.0.0.1:7077", "test", conf)
-
-    val geordd = sc.cassandraTable("geo", "linzgeo")
-    val georrdcase = geordd.select("name_id", "name").map { row =>
-      GeoName(row.getLong("name_id"), row.getString("name"))
-    }
-    georrdcase.cache()
-    val geobc = sc.broadcast(georrdcase.collect())
-
-    val artrdd = sc.cassandraTable("geo", "articles")
-
-    val filtered1 = artrdd.select("articleid","title","textabs").map { row =>
-      Article(row.getLong("articleid"), row.getString("title"), row.getString("textabs"), "")
-    }
-
-    val count = filtered1.count()
-    println(s"start ${count} articles")
-
-    val filtered2 = serialObs.filterStopWords(filtered1)
-    val forward = sc.parallelize(filtered2.collect()).cache()
-    val count2 = forward.count()
-
-    println(s"without stopwords ${count2} articles")
-
-    val titleTestMap = forward.repartition(4).mapPartitions { iter =>
-      iter.map{ art =>
-        val geoList = serialGeo.findGeoRefsInText(art.title, geobc)
-        (art.articleid, geoList)
-      }
-    }.cache()
-
-    titleTestMap.saveAsTextFile("/home/akmoch/dev/build/lucene-hydroabstracts-scala/misc/royal-files/spark/titles")
-
-    val titleNum1 = titleTestMap.map{ elem =>
-      val num = elem._2.size
-      num
-    }.reduce(_+_)
-
-    val absTestMap = forward.repartition(4).mapPartitions { iter =>
-      iter.map{ art =>
-        val geoList = serialGeo.findGeoRefsInText(art.textabs, geobc)
-        (art.articleid, geoList)
-      }
-    }.cache()
-
-    absTestMap.saveAsTextFile("/home/akmoch/dev/build/lucene-hydroabstracts-scala/misc/royal-files/spark/abstracts")
-
-    val absNum1 = absTestMap.map{ elem =>
-      val num = elem._2.size
-      num
-    }.reduce(_+_)
-
-    val diff = absNum1 - titleNum1
-    val meanA = absNum1 / count2
-    val meanT = titleNum1 / count2
-    println(s"geocollected title matches ${titleNum1} abstract matches ${absNum1} (diff : $diff / mean(abs)/mean(title) : $meanA / $meanT)")
+  val geordd = sc.cassandraTable("geo", "linzgeo")
+  val georrdcase = geordd.select("name_id", "name").map { row =>
+    GeoName(row.getLong("name_id"), row.getString("name"))
   }
+
+  // theoretically for lowercase compare toLowerCase here before broadcasting and remove from TestCompare
+  georrdcase.cache()
+  val geobc = sc.broadcast(georrdcase.collect())
+
+  val artrdd = sc.cassandraTable("geo", "articles")
+
+  val filtered1 = artrdd.select("articleid", "title", "textabs").map { row =>
+    Article(row.getLong("articleid"), row.getString("title"), row.getString("textabs"), "")
+  }
+
+  val count = filtered1.count()
+  println(s"start ${count} articles")
+
+  val filtered2 = serialObs.filterStopWords(filtered1)
+  val forward = sc.parallelize(filtered2.collect()).cache()
+  val count2 = forward.count()
+
+  println(s"without stopwords ${count2} articles")
+
+  val titleTestMap = forward.repartition(4).mapPartitions { iter =>
+    iter.map { art =>
+      val geoList = serialGeo.findGeoRefsInText(art.title, geobc)
+      (art.articleid, geoList)
+    }
+  }.cache()
+
+  titleTestMap.saveAsTextFile("/home/akmoch/dev/build/lucene-hydroabstracts-scala/misc/royal-files/spark/titles")
+
+  val titleNum1 = titleTestMap.map { elem =>
+    val num = elem._2.size
+    num
+  }.reduce(_ + _)
+
+  val absTestMap = forward.repartition(4).mapPartitions { iter =>
+    iter.map { art =>
+      val geoList = serialGeo.findGeoRefsInText(art.textabs, geobc)
+      (art.articleid, geoList)
+    }
+  }.cache()
+
+  absTestMap.saveAsTextFile("/home/akmoch/dev/build/lucene-hydroabstracts-scala/misc/royal-files/spark/abstracts")
+
+  val absNum1 = absTestMap.map { elem =>
+    val num = elem._2.size
+    num
+  }.reduce(_ + _)
+
+  val diff = absNum1 - titleNum1
+  val meanA = absNum1 / count2
+  val meanT = titleNum1 / count2
+  println(s"geocollected title matches ${titleNum1} abstract matches ${absNum1} (diff : $diff / mean(abs)/mean(title) : $meanA / $meanT)")
+
 }
