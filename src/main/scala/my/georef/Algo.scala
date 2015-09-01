@@ -490,9 +490,22 @@ object Algo extends LazyLogging {
     )
     val collection = sc.parallelize(Seq(johnzStats, marineStats, geologyStats))
 
-    collection.saveAsCassandraTable("geo", "journalstats", SomeColumns("journal", "numArticles", "numArticlesFiltered", "numTitleMatch",
-    "numAbstractMatch", "numFullTextMatch", "numTitleWords", "numAbstractWords", "numFullTextWords", "meanTitleMatch",
-    "meanAbstractMatch", "meanFullTextMatch", "meanTitleWords", "meanAbstractWords", "meanFullTextWords"))
+    collection.saveToCassandra("geo", "journalstats", SomeColumns("journal",
+      "numArticles" as "num_articles",
+      "numArticlesFiltered" as "num_articles_filtered",
+      "numTitleMatch" as "num_title_match",
+      "numAbstractMatch" as "num_abstract_match",
+      "numFullTextMatch" as "num_full_text_match",
+      "numTitleWords" as "num_title_words",
+      "numAbstractWords" as "num_abstract_words",
+      "numFullTextWords" as "num_FullText_Words",
+      "meanTitleMatch" as "mean_Title_Match",
+      "meanAbstractMatch" as "mean_Abstract_Match",
+      "meanFullTextMatch" as "mean_Full_Text_Match",
+      "meanTitleWords" as "mean_Title_Words",
+      "meanAbstractWords" as "mean_Abstract_Words",
+      "meanFullTextWords" as "mean_Full_Text_Words")
+    )
 
   }
 
