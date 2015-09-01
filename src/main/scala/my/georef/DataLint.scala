@@ -7,6 +7,23 @@ case class GeoName(name_id: Long, name: String) extends Serializable
 
 case class Article(articleid: Long, title: String, textabs: String, fulltext: String, journal: String) extends Serializable
 
+case class JournalStats(
+                         journal: String,  //
+                         numArticles: Long,  // count1
+                         numArticlesFiltered: Long, // count
+                         numTitleMatch: Long,
+                         numAbstractMatch: Long,
+                         numFullTextMatch: Long,
+                         numTitleWords: Long,
+                         numAbstractWords: Long,
+                         numFullTextWords: Long,
+                         meanTitleMatch: Double,
+                         meanAbstractMatch: Double,
+                         meanFullTextMatch: Double,
+                         meanTitleWords: Double,
+                         meanAbstractWords: Double,
+                         meanFullTextWords: Double )
+
 object DataLint extends Serializable with LazyLogging {
 
   val noAbstractWords = List("No abstract", "No Abstract", "No abstract available.").map(x => x.toLowerCase())
