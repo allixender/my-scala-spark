@@ -4,11 +4,11 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.broadcast._
 
-case class GeoName(name_id: Long, name: String)
+case class GeoName(name_id: Long, name: String) extends Serializable
 
-case class Article(articleid: Long, title: String, textabs: String, fulltext: String)
+case class Article(articleid: Long, title: String, textabs: String, fulltext: String, journal: String) extends Serializable
 
-object serialObs extends Serializable {
+object serialObs extends Serializable with Logging {
 
   val noAbstractWords = List("No abstract", "No Abstract", "No abstract available.").map(x => x.toLowerCase())
 
@@ -104,7 +104,17 @@ object serialObs extends Serializable {
 
   def filterEmptyFullText(rdd: RDD[Article]): RDD[Article] = {
     rdd.filter { article =>
-      !article.fulltext.isEmpty
+      article.fulltext != null && !article.fulltext.isEmpty
+    }.filter { article =>
+      article.textabs != null && !article.textabs.isEmpty
+    }.filter { article =>
+      article.title != null && !article.title.isEmpty
+    }
+  }
+
+  def filterEmptyGeoNAmes(rdd: RDD[GeoName]): RDD[GeoName] = {
+    rdd.filter { geoname =>
+      geoname.name != null && !geoname.name.isEmpty
     }
   }
 }
@@ -120,7 +130,7 @@ object serialGeo extends Serializable {
 
 }
 
-object GeoRefTitleAbstract extends App {
+object GeoRefTitleAbstract extends App with Serializable {
 
   val conf = new SparkConf(true).set("spark.cassandra.connection.host", "127.0.0.1")
   val sc = new SparkContext("spark://127.0.0.1:7077", "test", conf)
@@ -137,7 +147,7 @@ object GeoRefTitleAbstract extends App {
   val artrdd = sc.cassandraTable("geo", "articles")
 
   val filtered1 = artrdd.select("articleid", "title", "textabs").map { row =>
-    Article(row.getLong("articleid"), row.getString("title"), row.getString("textabs"), "")
+    Article(row.getLong("articleid"), row.getString("title"), row.getString("textabs"), "", "")
   }
 
   val count = filtered1.count()

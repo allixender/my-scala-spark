@@ -22,8 +22,13 @@ libraryDependencies ++= Seq(
   "commons-io" % "commons-io" % "2.2",
   "com.datastax.cassandra" % "cassandra-driver-core" % "2.1.5" exclude("org.xerial.snappy", "snappy-java"),
   "org.xerial.snappy"       	% "snappy-java"           % "1.1.1.7",
-  "org.apache.spark" %% "spark-core" % "1.4.1" % "provided",
-  "com.datastax.spark" %% "spark-cassandra-connector" % "1.4.0-M3" exclude("org.slf4j", "slf4j-api")
+  "org.apache.spark" %% "spark-core" % "1.3.1" % "provided",
+  "com.datastax.spark" %% "spark-cassandra-connector" % "1.3.0" exclude("org.slf4j", "slf4j-api"),
+  "com.azavea.geotrellis" %% "geotrellis-raster" % geotrellisVersion,
+  "com.azavea.geotrellis" %% "geotrellis-vector" % geotrellisVersion,
+  "com.azavea.geotrellis" %% "geotrellis-gdal" % geotrellisVersion,
+  "com.azavea.geotrellis" %% "geotrellis-spark" % geotrellisVersion,
+  "com.azavea.geotrellis" %% "geotrellis-spark-etl" % geotrellisVersion
 )
 
 resolvers ++= Seq(

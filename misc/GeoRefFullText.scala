@@ -1,15 +1,9 @@
-import org.apache.spark._
 import com.datastax.spark.connector._
-import org.apache.spark.rdd.RDD
+import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.broadcast._
-import geotrellis.spark._
-import geotrellis.spark.etl.cassandra._
 
-import scala.collection.JavaConversions._
-import scala.reflect.ClassTag
-
-object serialGeo2 extends Serializable {
+object serialGeo2 extends Serializable with Logging {
 
   def findGeoRefsInText(testString: String, bcgeo: Broadcast[Array[GeoName]]): List[GeoName] = {
     val filtered = bcgeo.value.filter { georef =>
@@ -19,8 +13,11 @@ object serialGeo2 extends Serializable {
   }
 
   def findGeoRefsInTextCaseSensitive(testString: String, bcgeo: Broadcast[Array[GeoName]]): List[GeoName] = {
-    val filtered = bcgeo.value.filter { georef =>
-      testString.contains(georef.name)
+
+    val filtered = bcgeo.value.filter {
+      georef =>
+        testString.
+          contains(georef.name)
     }.toList
     filtered
   }
@@ -34,7 +31,7 @@ object serialGeo2 extends Serializable {
 
 }
 
-object GeoRefFullText extends App {
+object GeoRefFullText extends App with Serializable {
 
   val conf = new SparkConf(true).set("spark.cassandra.connection.host", "127.0.0.1")
   val sc = new SparkContext("spark://127.0.0.1:7077", "test", conf)
@@ -49,7 +46,7 @@ object GeoRefFullText extends App {
   val artrdd = sc.cassandraTable("geo", "articles")
 
   val filtered1 = artrdd.select("articleid", "title", "textabs", "fulltext").map { row =>
-    Article(row.getLong("articleid"), row.getString("title"), row.getString("textabs"), row.getString("fulltext"))
+    Article(row.getLong("articleid"), row.getString("title"), row.getString("textabs"), row.getString("fulltext"), "")
   }
 
   val count = filtered1.count()
@@ -69,7 +66,7 @@ object GeoRefFullText extends App {
     }
   }.cache()
 
-  fullTextMap.saveAsTextFile("/home/akmoch/dev/build/lucene-hydroabstracts-scala/misc/royal-files/spark/fulltext")
+  fullTextMap.saveAsTextFile("/tmp/001_fulltext")
 
   val fulltextNum1 = fullTextMap.map { elem =>
     val num = elem._2.size
@@ -84,7 +81,7 @@ object GeoRefFullText extends App {
     }
   }.cache()
 
-  fullTextMapCS.saveAsTextFile("/home/akmoch/dev/build/lucene-hydroabstracts-scala/misc/royal-files/spark/fulltext_cs")
+  fullTextMapCS.saveAsTextFile("/tmp/001_fulltext_cs")
 
   val fulltextNum2 = fullTextMapCS.map { elem =>
     val num = elem._2.size

@@ -50,3 +50,4 @@ tmp/
 build/
 akka-patterns-store/
 /bin/
+derby.log
