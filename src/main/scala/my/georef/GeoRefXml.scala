@@ -32,21 +32,36 @@ object GeoRefXml extends LazyLogging {
 
     val NUM_PARTITIONS = 2
 
-    val artrdd = sc.cassandraTable[Article]("geo", "articles").collect()
+    val artrdd = sc.cassandraTable[Article]("geo", "articles")
     // val artrdd = sc.cassandraTable[Article]("geo", "articles").take(50)
 
-    val filtered1 = sc.parallelize(artrdd).cache()
+    // val filtered1 = sc.parallelize(artrdd) // .cache()
+    val filtered1 = artrdd
 
     val count1 = filtered1.count()
 
     logger.info(s"<><><> start ${count1} articles, planning $NUM_PARTITIONS partitions")
 
     // stop words and empty filtering
-    val filtered2 = DataLint.filterStopWords(filtered1).map(art => (art.articleid, art))
+    val filtered2 = filtered1.mapPartitions {
+      iterator =>
+        iterator.map {
+          article =>
+            (article.articleid, article)
+        }.filter {
+          case (articleid, article) =>
+            !DataLint.testNoTitleReverse(article.title)
+        }.filter {
+          case (articleid, article) =>
+            !DataLint.testNoAbstractReverse(article.textabs)
+        }
+    }
+
+    // val filtered2 = DataLint.filterStopWords(filtered1).map(art => (art.articleid, art))
     // val filtered3 = DataLint.filterEmptyFullText(filtered2)
     // val forward = sc.parallelize(filtered3.collect()).cache()
 
-    filtered2.cache()
+    // filtered2.cache()
 
     val filtered2count = filtered2.count()
 
@@ -74,7 +89,7 @@ object GeoRefXml extends LazyLogging {
             }.toList
             (articleid, geoList)
         }
-    }.cache()
+    } //.cache()
 
     // title geomatch number stats
     val titleGeomatchesCount = articlesTitleMapCS.map { elem =>
@@ -106,7 +121,7 @@ object GeoRefXml extends LazyLogging {
             }.toList
             (articleid, geoList)
         }
-    }.cache()
+    } //.cache()
 
     // abstract geomatch number stats
     val abstractsGeomatchesCount = articlesAbstractsMapCS.map { elem =>
