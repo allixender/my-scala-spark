@@ -25,17 +25,17 @@ object Algo extends LazyLogging {
     logger.info(s"<><><> geobc ${geobc.value.size}")
 
     val NUM_PARTITIONS = 2
-    val artrdd = sc.cassandraTable("geo", "articles")
+    val artrdd = sc.cassandraTable[Article]("geo", "articles").collect()
+
+    val fullFirltered = sc.parallelize(artrdd).cache()
+
 
     //*********************************************
     //
     //   JOHNZ RDD
     //
     //*********************************************
-    val filtered1 = artrdd.select("articleid", "title", "textabs", "fulltext", "journal").where("journal = ?", JOHNZ).map { row =>
-      Article(row.getLong("articleid"), row.getString("title"), row.getString("textabs"), row.getString("fulltext"), row.getString("journal"))
-    }
-
+    val filtered1 = fullFirltered.filter(art => art.journal.equalsIgnoreCase(JOHNZ))
     val count1 = filtered1.count()
 
     logger.info(s"<><><> start ${count1} articles, planning $NUM_PARTITIONS partitions")
@@ -170,9 +170,7 @@ object Algo extends LazyLogging {
     //
     //*********************************************
 
-    val marinefiltered1 = artrdd.select("articleid", "title", "textabs", "fulltext", "journal").where("journal = ?", MARINE).map { row =>
-      Article(row.getLong("articleid"), row.getString("title"), row.getString("textabs"), row.getString("fulltext"), row.getString("journal"))
-    }
+    val marinefiltered1 = fullFirltered.filter(art => art.journal.equalsIgnoreCase(MARINE))
 
     val marinecount1 = marinefiltered1.count()
 
@@ -308,9 +306,7 @@ object Algo extends LazyLogging {
     //
     //*********************************************
 
-    val geologyfiltered1 = artrdd.select("articleid", "title", "textabs", "fulltext", "journal").where("journal = ?", GEOLOGY).map { row =>
-      Article(row.getLong("articleid"), row.getString("title"), row.getString("textabs"), row.getString("fulltext"), row.getString("journal"))
-    }
+    val geologyfiltered1  = fullFirltered.filter(art => art.journal.equalsIgnoreCase(GEOLOGY))
 
     val geologycount1 = geologyfiltered1.count()
 

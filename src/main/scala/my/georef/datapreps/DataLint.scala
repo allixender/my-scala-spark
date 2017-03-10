@@ -16,16 +16,24 @@ import org.opengis.referencing.operation.{MathTransform, TransformException}
 case class GeoName(
                     name_id: Long,
                     name: String,
-                    status: String,
-                    land_district: String,
-                    crd_projection: String,
-                    crd_north: Double,
-                    crd_east: Double,
                     crd_datum: String,
+                    crd_east: Double,
                     crd_latitude: Double,
-                    crd_longitude: Double) extends Serializable
+                    crd_longitude: Double,
+                    crd_north: Double,
+                    crd_projection: String,
+                    land_district: String,
+                    status: String ) extends Serializable
 
-case class Article(articleid: Long, title: String, textabs: String, fulltext: String, journal: String) extends Serializable
+case class Article(articleid: Long,
+                   journal: String,
+                   arturl: String,
+                   author: String,
+                   authortitle: String,
+                   fulltext: String,
+                   textabs: String,
+                   title: String,
+                   year: Long ) extends Serializable
 
 case class JournalStats(
                          journal: String,  //
@@ -148,31 +156,39 @@ object DataLint extends Serializable with LazyLogging {
     }
   }
 
-  def enrichGeoRef(hintFull: List[GeoName], hintOfficalFull: List[GeoName], tmpMeta: MetaData) : MetaData = {
+  def enrichGeoRef(geoMatches: List[GeoName], tmpMeta: MetaData) : MetaData = {
 
-    val finalBbox = if (!hintOfficalFull.isEmpty) {
+    val finalBbox = if (!geoMatches.isEmpty) {
       // val thing = hintOfficalFull.distinct.map(refElem => s"${refElem.name_id}: ${refElem.name}")
-      val bbox = getBboxFromRefs(hintOfficalFull)
+      val bbox = getBboxFromRefs(geoMatches)
       // logger.debug(s"OFFICIAL GEOREF ### $thing} ### $bbox")
       tmpMeta.gmd_identificationInfo_MD_DataIdentification_extent_Description =
-        hintOfficalFull.map(refElem => refElem.name).distinct.mkString(", ")
-      bbox
-    }
-    else if (!hintFull.isEmpty) {
-      // val thing = hintFull.distinct.map(refElem => s"${refElem.name_id}: ${refElem.name}")
-      val bbox = getBboxFromRefs(hintFull)
-      // logger.debug(s"GENERAL GEOREF ### $thing} ### $bbox")
-      tmpMeta.gmd_identificationInfo_MD_DataIdentification_extent_Description =
-        hintFull.map(refElem => refElem.name).distinct.mkString(", ")
+        geoMatches.map(refElem => refElem.name).distinct.mkString(", ")
       bbox
     }
     else {
 
-      val lowerLeft = GeoName(123456,"lowerLeft","Official","","",0.0,
-        0.0,"NZGD2000",-47.93848,165.39060)
+      val lowerLeft = GeoName(123456,
+        "lowerLeft",
+        "NZGD2000",
+        0.0,
+        -47.93848,
+        165.39060,
+        0.0,
+        "",
+        "",
+        "Official")
 
-      val upperRight = GeoName(123456,"upperRight","Official","","",0.0,
-        0.0,"NZGD2000",-34.02613,178.73954)
+      val upperRight = GeoName(123457,
+        "upperRight",
+        "NZGD2000",
+        0.0,
+        -34.02613,
+        178.73954,
+        0.0,
+        "",
+        "",
+        "Official")
 
       val bbox = getBboxFromRefs(List(lowerLeft, upperRight))
       // logger.debug(s"NEW ZEALAND GEOREF ### $bbox")
@@ -250,8 +266,6 @@ object DataLint extends Serializable with LazyLogging {
 
   // lat, lon input
   def recodePointTo4326( coords:(Double, Double), source_srs: String ) :  (Double, Double) = {
-
-
 
     val coordsswitchlist = List("EPSG:27200", "EPSG:900913", "EPSG:3785")
 

@@ -1,6 +1,7 @@
 package my.georef.ogcxml;
 
 
+import my.georef.datapreps.Article;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.log4j.Logger;
 import org.apache.xmlbeans.XmlOptions;
@@ -16,13 +17,11 @@ import java.util.*;
 
 public class MetaData {
 
-    public MetaData(long articleid, String author, String title, long year, String textabs) {
-        this.contactName = author;
-        this.contactOrg = "NZ Hydrological Society - Publications - Journal";
+    public MetaData(Article article) {
+
+        this.contactName = article.author();
         this.datetimestamp = new Date();
-        this.title = title;
-        this.topiccategory = "inlandWaters";
-        this.keywords = "hydrology, New Zealand, Journal of Hydrology";
+        this.title = article.title();
         this.datainfolevel = "dataset";
         this.mapExtentCoordinates = "BBOX ( 178.73954 E -47.93848 S 165.39060 W -34.02613 N )";
         this.gmd_identificationInfo_MD_DataIdentification_extent_BBOX_westBoundLongitude = 165.39060;
@@ -35,42 +34,95 @@ public class MetaData {
         this.gmd_identificationInfo_MD_DataIdentification_CI_Citation_gmd_title = title;
 
         this.isCreateNewRecordRequest = "true";
-        this.hostingcatalogueUrl = "http://portal.smart-project.info/mycsw/csw";
+        this.hostingcatalogueUrl = "http://portal.smart-project.info/pycsw/csw";
 
-        this.gmd_identificationInfo_MD_DataIdentification_abstract = textabs;
+        this.gmd_identificationInfo_MD_DataIdentification_abstract = article.textabs();
         this.gmd_identificationInfo_MD_DataIdentification_TopicCategoryCode = this.topiccategory;
         this.gmd_identificationInfo_MD_DataIdentification_extent_Description = "derive from abstract";
 
         this.gmd_referenceSystemInfo = "urn:ogc:def:crs:EPSG::4326";
-        this.gmd_identificationInfo_MD_DataIdentification_CI_Citation_CI_Date = Long.toString(year);
+        this.gmd_identificationInfo_MD_DataIdentification_CI_Citation_CI_Date = Long.toString(article.year());
 
         this.gmd_identificationInfo_MD_DataIdentification_CI_Citation_CI_Date_dateType = "creation";
-        this.gmd_dataQualityInfo_LI_Lineage_statement = ""; // will be filled generically
 
-        this.gmd_identificationInfo_MD_DataIdentification_CI_ResponsibleParty_ci_individualName = author;
-        this.gmd_identificationInfo_MD_DataIdentification_CI_ResponsibleParty_CI_Contact_ci_telephone = "+64 6 357 1605";
-        this.gmd_identificationInfo_MD_DataIdentification_CI_ResponsibleParty_CI_Contact_ci_email = "admin@hydrologynz.org.nz";
+        this.gmd_identificationInfo_MD_DataIdentification_CI_ResponsibleParty_ci_individualName = article.author();
+        this.gmd_Contact_CI_ResponsibleParty_ci_individualName = article.author();
+
         this.gmd_identificationInfo_MD_DataIdentification_CI_ResponsibleParty_ci_pointOfContact = "author";
-        this.gmd_identificationInfo_MD_DataIdentification_CI_ResponsibleParty_ci_organisationName = "NZ Hydrological Society - Publications - Journal";
-        this.gmd_identificationInfo_MD_DataIdentification_CI_ResponsibleParty_CI_Contact_ci_onlineLinkage = "http://www.hydrologynz.org.nz/index.php/nzhs-publications/nzhs-journal";
-
-        this.gmd_Contact_CI_ResponsibleParty_ci_individualName = author;
-        this.gmd_Contact_CI_ResponsibleParty_CI_Contact_ci_telephone = "+64 6 357 1605";
-        this.gmd_Contact_CI_ResponsibleParty_CI_Contact_ci_email = "admin@hydrologynz.org.nz";
         this.gmd_Contact_CI_ResponsibleParty_ci_pointOfContact = "author";
-        this.gmd_Contact_CI_ResponsibleParty_ci_organisationName = "NZ Hydrological Society - Publications - Journal";
-        this.gmd_Contact_CI_ResponsibleParty_CI_Contact_ci_onlineLinkage = "http://www.hydrologynz.org.nz/index.php/nzhs-publications/nzhs-journal";
-
-        this.gmd_metadataConstraints_MD_LegalConstraints_useLimitation = "The Journal of Hydrology (New Zealand) (ISSN 0022-1708.) - We have loaded all abstracts to Volume 51 and papers for free viewing up to Volume 46 as at 12 October 2011.";
-        this.gmd_identificationInfo_MD_DataIdentification_MD_Constraints = "The Journal of Hydrology (New Zealand) (ISSN 0022-1708.) - We have loaded all abstracts to Volume 51 and papers for free viewing up to Volume 46 as at 12 October 2011.";
 
         this.gmd_distributionInfo_MD_Distribution_formatName = "Journal Article in PDF";
         this.gmd_distributionInfo_MD_Distribution_formatVersion = "1.3 scanned / 1.6 electronic articles";
 
-        this.gmd_distributionInfo_MD_Distribution_MD_DigitalTransferOptions_CI_OnlineResource_linkage = "http://www.hydrologynz.co.nz/journal.php?article_id=" + articleid;
-
         this.gmd_metadataStandardName = "ISO 19115:2003/19139";
         this.gmd_metadataStandardVersion = "1.0";
+
+        this.contactOrg = article.journal();
+        this.gmd_identificationInfo_MD_DataIdentification_CI_ResponsibleParty_ci_organisationName = contactOrg;
+        this.gmd_Contact_CI_ResponsibleParty_ci_organisationName = contactOrg;
+
+        String telephone = "+64 6 357 1605";
+        String email = "admin@hydrologynz.org.nz";
+        String journalWebsite = "http://www.hydrologynz.org.nz/index.php/nzhs-publications/nzhs-journal";
+        String provenanceInfo = "The Journal of Hydrology (New Zealand) (ISSN 0022-1708.) - We have loaded all abstracts to Volume 51 and papers for free viewing up to Volume 46 as at 12 October 2011.";
+        String articleAccessUrl = "http://www.hydrologynz.co.nz/journal.php?article_id=" + article.articleid();
+
+        // the big divide :-)
+        if (article.journal().equalsIgnoreCase("New Zealand Journal of Hydrology")) {
+            this.topiccategory = "inlandWaters";
+
+            telephone = "+64 6 357 1605";
+            email = "admin@hydrologynz.org.nz";
+            journalWebsite = "http://www.hydrologynz.org.nz/index.php/nzhs-publications/nzhs-journal";
+            provenanceInfo = "The Journal of Hydrology (New Zealand) (ISSN 0022-1708.)," +
+                    "Terms & Conditions can be found at http://hydrologynz.co.nz/documents/JoHNZCopyrightform.pdf";
+            articleAccessUrl = "http://www.hydrologynz.co.nz/journal.php?article_id=" + article.articleid();
+
+        } else if (article.journal().equalsIgnoreCase("New Zealand Journal of Marine and Freshwater Research")) {
+            this.topiccategory = "inlandWaters";
+
+            telephone = "+64 3 479 8324";
+            email = "candida.savage@otago.ac.nz";
+            journalWebsite = "http://www.tandfonline.com/action/journalInformation?journalCode=tnzm20";
+            provenanceInfo = "New Zealand Journal of Marine and Freshwater Research (Print ISSN: 0028-8330 Online ISSN: 1175-8805), " +
+                    "The Royal Society of New Zealand and our publisher Taylor & Francis, " +
+                    "Terms & Conditions of access and use can be found at http://www.tandfonline.com/page/terms-and-conditions";
+            articleAccessUrl = article.arturl();
+
+        } else if (article.journal().equalsIgnoreCase("New Zealand Journal of Geology and Geophysics")) {
+            this.topiccategory = "geoscientificInformation";
+
+            telephone = "+64 4 570 1444";
+            email = "n.mortimer@gns.cri.nz";
+            journalWebsite = "http://www.tandfonline.com/action/journalInformation?journalCode=tnzg20";
+            provenanceInfo = "New Zealand Journal of Geology and Geophysics (Print ISSN: 0028-8306 Online ISSN: 1175-8791), " +
+                    "The Royal Society of New Zealand and our publisher Taylor & Francis, " +
+                    "Terms & Conditions of access and use can be found at http://www.tandfonline.com/page/terms-and-conditions";
+            articleAccessUrl = article.arturl();
+
+        } else {
+            this.topiccategory = "inlandWaters";
+
+        }
+
+        this.keywords = "";
+
+
+        this.gmd_identificationInfo_MD_DataIdentification_CI_ResponsibleParty_CI_Contact_ci_telephone = telephone;
+        this.gmd_Contact_CI_ResponsibleParty_CI_Contact_ci_telephone = telephone;
+
+        this.gmd_identificationInfo_MD_DataIdentification_CI_ResponsibleParty_CI_Contact_ci_email = email;
+        this.gmd_Contact_CI_ResponsibleParty_CI_Contact_ci_email = email ;
+
+
+        this.gmd_identificationInfo_MD_DataIdentification_CI_ResponsibleParty_CI_Contact_ci_onlineLinkage = journalWebsite;
+        this.gmd_Contact_CI_ResponsibleParty_CI_Contact_ci_onlineLinkage = journalWebsite;
+
+        this.gmd_metadataConstraints_MD_LegalConstraints_useLimitation = provenanceInfo;
+        this.gmd_identificationInfo_MD_DataIdentification_MD_Constraints = provenanceInfo;
+        this.gmd_dataQualityInfo_LI_Lineage_statement = provenanceInfo;
+
+        this.gmd_distributionInfo_MD_Distribution_MD_DigitalTransferOptions_CI_OnlineResource_linkage = articleAccessUrl;
     }
 
     private final static String isoCodeList = "http://www.isotc211.org/2005/resources/codeList.xml";
