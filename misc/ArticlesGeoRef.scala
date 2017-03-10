@@ -1,5 +1,6 @@
 import com.datastax.spark.connector._
-import my.georef.{Article, GeoName}
+import my.georef.Article
+import my.georef.datapreps.{Article, GeoName}
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.broadcast._

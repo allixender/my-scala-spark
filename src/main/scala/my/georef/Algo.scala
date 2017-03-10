@@ -1,13 +1,14 @@
 package my.georef
 
-import com.typesafe.scalalogging.slf4j.LazyLogging
-import org.apache.spark.{SparkContext, SparkConf}
+import com.typesafe.scalalogging.LazyLogging
+import org.apache.spark.{SparkConf, SparkContext}
 import com.datastax.spark.connector._
+import my.georef.datapreps.{Article, DataLint, GeoName, JournalStats}
 
 
 object Algo extends LazyLogging {
 
-  def main (args: Array[String]) {
+  def mainAlgo (args: Array[String]) {
 
     val conf = new SparkConf(true).set("spark.cassandra.connection.host", "127.0.0.1")
     implicit val sc = new SparkContext("spark://127.0.0.1:7077", "test", conf)
@@ -16,12 +17,11 @@ object Algo extends LazyLogging {
     val MARINE = "New Zealand Journal of Marine and Freshwater Research"
     val GEOLOGY = "New Zealand Journal of Geology and Geophysics"
 
-    val geordd = sc.cassandraTable("geo", "linzgeo")
-    val georrdcase = geordd.select("name_id", "name").map { row =>
-      GeoName(row.getLong("name_id"), row.getString("name"))
-    }
+    val geordd = sc.cassandraTable[GeoName]("geo", "linzgeo").collect()
+    // val georrdcase = geordd.select("name_id", "name", "crd_datum", "crd_east", "crd_latitude", "crd_longitude",
+    //   "crd_north", "crd_projection", "land_district", "status" ).collect()
 
-    val geobc = sc.broadcast(georrdcase.collect())
+    val geobc = sc.broadcast(geordd)
     logger.info(s"<><><> geobc ${geobc.value.size}")
 
     val NUM_PARTITIONS = 2
