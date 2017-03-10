@@ -1,13 +1,12 @@
 package my.georef
 
 import org.apache.spark.SparkContext
-import org.apache.spark.SparkContext._
 import org.apache.spark.SparkConf
 import com.datastax.spark.connector._
 import com.typesafe.scalalogging.LazyLogging
 import my.georef.datapreps.{Article, DataLint, GeoName}
 import my.georef.ogcxml.MetaData
-
+import scala.util.matching.Regex
 
 object GeoRefXml extends LazyLogging {
 
@@ -24,11 +23,17 @@ object GeoRefXml extends LazyLogging {
     // val georrdcase = geordd.select("name_id", "name", "crd_datum", "crd_east", "crd_latitude", "crd_longitude",
     //  "crd_north", "crd_projection", "land_district", "status" ).collect()
 
+    val geoRegex = geordd.map(geon => (geon, s"\\b(?i)${geon.name}\\b".r))
+    val geoRegexBc = sc.broadcast(geoRegex)
+
     val geobc = sc.broadcast(geordd)
     logger.info(s"<><><> geobc ${geobc.value.size}")
+    logger.info(s"<><><> geoRegexBc ${geoRegexBc.value.size}")
 
     val NUM_PARTITIONS = 2
+
     val artrdd = sc.cassandraTable[Article]("geo", "articles").collect()
+    // val artrdd = sc.cassandraTable[Article]("geo", "articles").take(50)
 
     val filtered1 = sc.parallelize(artrdd).cache()
 
@@ -48,13 +53,27 @@ object GeoRefXml extends LazyLogging {
     logger.info(s"<><><> all articles without stopwords ${filtered2count} articles")
 
     // geomatch over titles
-    val articlesTitleMapCS = filtered2.map {
-      case (articleid, art) =>
-        val geoList = geobc.value.filter {
-          georef =>
-            art.title.contains(georef.name)
-        }.toList
-        (articleid, geoList)
+    //    val articlesTitleMapCS = filtered2.map {
+    //      case (articleid, art) =>
+    //        val geoList = geoRegexBc.value.filter {
+    //          case (georef, regX) =>
+    //            val checkOpt = regX.findFirstIn(art.title)
+    //            checkOpt.isDefined
+    //        }.toList
+    //        (articleid, geoList)
+    //    }.cache()
+
+    val articlesTitleMapCS = filtered2.mapPartitions {
+      iterator =>
+        iterator.map {
+          case (articleid, art) =>
+            val geoList = geoRegexBc.value.filter {
+              case (georef, regX) =>
+                val checkOpt = regX.findFirstIn(art.title)
+                checkOpt.isDefined
+            }.toList
+            (articleid, geoList)
+        }
     }.cache()
 
     // title geomatch number stats
@@ -66,17 +85,27 @@ object GeoRefXml extends LazyLogging {
     logger.info(s"<><><> titleGeomatchesCount count  ${titleGeomatchesCount}")
 
     // geomatch over abstracts
-    val articlesAbstractsMapCS = filtered2.map {
-      case (articleid, art) =>
-        val geoList = if (geobc != null && geobc.value != null) {
-          geobc.value.filter {
-            georef =>
-              art.textabs.contains(georef.name)
-          }.toList
-        } else {
-          List[GeoName]()
+    //    val articlesAbstractsMapCS = filtered2.map {
+    //      case (articleid, art) =>
+    //        val geoList = geoRegexBc.value.filter {
+    //          case (georef, regX) =>
+    //            val checkOpt = regX.findFirstIn(art.textabs)
+    //            checkOpt.isDefined
+    //        }.toList
+    //        (articleid, geoList)
+    //    }.cache()
+
+    val articlesAbstractsMapCS = filtered2.mapPartitions {
+      iterator =>
+        iterator.map {
+          case (articleid, art) =>
+            val geoList = geoRegexBc.value.filter {
+              case (georef, regX) =>
+                val checkOpt = regX.findFirstIn(art.textabs)
+                checkOpt.isDefined
+            }.toList
+            (articleid, geoList)
         }
-        (articleid, geoList)
     }.cache()
 
     // abstract geomatch number stats
@@ -87,37 +116,48 @@ object GeoRefXml extends LazyLogging {
 
     logger.info(s"<><><> abstractsGeomatchesCount count  ${abstractsGeomatchesCount}")
 
-    // REDUCE JOHNZ TITLE TO COLLECTION FOR CASSANDRA INSERT
+    // REDUCE  TITLE TO COLLECTION FOR CASSANDRA INSERT
     val titleMatchCasCollection = articlesTitleMapCS.map {
       case (articleid, geoList) =>
-        val titlematch = geoList.map(geoname => geoname.name_id)
+        val titlematch = geoList.map(geoTuple => geoTuple._1.name_id)
         (articleid, titlematch)
     }.saveToCassandra("geo", "geomatch", SomeColumns("articleid", "titlematch"))
 
-    // REDUCE JOHNZ ABSTRACT TO COLLECTION FOR CASSANDRA INSERT
+    // REDUCE  ABSTRACT TO COLLECTION FOR CASSANDRA INSERT
     val abstractsMatchCasCollection = articlesAbstractsMapCS.map {
       case (articleid, geoList) =>
-        val abstractmatch = geoList.map(geoname => geoname.name_id)
+        val abstractmatch = geoList.map(geoTuple => geoTuple._1.name_id)
         (articleid, abstractmatch)
     }.saveToCassandra("geo", "geomatch", SomeColumns("articleid", "abstractmatch"))
 
     val jointMatchesMap = articlesAbstractsMapCS.join(articlesTitleMapCS).map {
       case (articleid, geoListTuple) =>
-        val newList = geoListTuple._1 ++ geoListTuple._2
+        val newList1 = geoListTuple._1.map(_._1)
+        val newList2 = geoListTuple._2.map(_._1)
+        val newList = newList1 ++ newList2
         (articleid, newList)
     }.join(filtered2)
 
-    val readyXml = jointMatchesMap.map {
-      case (articleid, dataTuple) =>
-        dataTuple match {
-          case (geoList, fullArticle) => {
-            val tmpMeta = new MetaData(fullArticle)
-            val xml = DataLint.enrichGeoRef(geoList, tmpMeta)
-            (articleid, xml)
-          }
+    import scala.collection.JavaConverters._
+
+    val readyXml = jointMatchesMap.mapPartitions {
+      iterator =>
+        iterator.map {
+          case (articleid, dataTuple) =>
+            dataTuple match {
+              case (geoList, fullArticle) => {
+                val tmpMeta = new MetaData(fullArticle)
+                val xml = DataLint.enrichGeoRef(geoList, tmpMeta)
+                val validateInfo = xml.validate()
+                val stringList = validateInfo.asScala.toList
+                stringList.foreach(msg => logger.warn(s"<><><> validateInfo  $msg"))
+                val xmlText = xml.getMDRecordXml
+                (articleid, xmlText)
+              }
+            }
         }
 
-    }
+    }.saveToCassandra("geo", "metaxml", SomeColumns("articleid", "metaxml"))
 
   }
 

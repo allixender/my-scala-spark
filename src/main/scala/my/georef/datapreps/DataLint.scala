@@ -11,6 +11,9 @@ import org.opengis.referencing.{FactoryException, NoSuchAuthorityCodeException}
 import org.opengis.referencing.crs.CoordinateReferenceSystem
 import org.opengis.referencing.operation.{MathTransform, TransformException}
 
+import org.apache.spark.ml.feature.StopWordsRemover
+import org.apache.spark.ml.feature.{RegexTokenizer, Tokenizer}
+import org.apache.spark.sql.functions._
 
 
 case class GeoName(

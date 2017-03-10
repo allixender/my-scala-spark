@@ -22,6 +22,8 @@ public class MetaData {
         this.contactName = article.author();
         this.datetimestamp = new Date();
         this.title = article.title();
+        this.gmd_identificationInfo_MD_DataIdentification_CI_Citation_gmd_title = title;
+
         this.datainfolevel = "dataset";
         this.mapExtentCoordinates = "BBOX ( 178.73954 E -47.93848 S 165.39060 W -34.02613 N )";
         this.gmd_identificationInfo_MD_DataIdentification_extent_BBOX_westBoundLongitude = 165.39060;
@@ -31,14 +33,14 @@ public class MetaData {
 
         this.gmd_identificationInfo_MD_DataIdentification_MD_Resolution_scaleDenominator = 50000;
 
-        this.gmd_identificationInfo_MD_DataIdentification_CI_Citation_gmd_title = title;
+
 
         this.isCreateNewRecordRequest = "true";
         this.hostingcatalogueUrl = "http://portal.smart-project.info/pycsw/csw";
 
         this.gmd_identificationInfo_MD_DataIdentification_abstract = article.textabs();
-        this.gmd_identificationInfo_MD_DataIdentification_TopicCategoryCode = this.topiccategory;
-        this.gmd_identificationInfo_MD_DataIdentification_extent_Description = "derive from abstract";
+
+        this.gmd_identificationInfo_MD_DataIdentification_extent_Description = "";
 
         this.gmd_referenceSystemInfo = "urn:ogc:def:crs:EPSG::4326";
         this.gmd_identificationInfo_MD_DataIdentification_CI_Citation_CI_Date = Long.toString(article.year());
@@ -105,8 +107,9 @@ public class MetaData {
 
         }
 
-        this.keywords = "";
+        this.keywords = article.title().replace(" ", ", ");
 
+        this.gmd_identificationInfo_MD_DataIdentification_TopicCategoryCode = this.topiccategory;
 
         this.gmd_identificationInfo_MD_DataIdentification_CI_ResponsibleParty_CI_Contact_ci_telephone = telephone;
         this.gmd_Contact_CI_ResponsibleParty_CI_Contact_ci_telephone = telephone;
@@ -860,16 +863,16 @@ public class MetaData {
                         StringEscapeUtils
                                 .escapeXml(meta.gmd_metadataConstraints_MD_LegalConstraints_useLimitation));
 
-        if (this.validate() == false) {
-            LOGGER.debug("validation errors");
-            return "validation errors";
+        if (this.validate().size() > 0) {
+            LOGGER.warn("validation errors");
+            return xbMetaDoc.xmlText(xmlOptions);
         } else {
             return xbMetaDoc.xmlText(xmlOptions);
         }
     }
 
     // validation to request required fields
-    public boolean validate() {
+    public List<String> validate() {
 
         List<String> validationList = new ArrayList<String>();
 
@@ -936,12 +939,13 @@ public class MetaData {
             }
         }
         if (validationList.size() == 0) {
-            return true;
+            return validationList;
         } else {
             for (String valerr : validationList) {
-                LOGGER.error("VALDIATION ERR " + this.title + " ### " + gmd_distributionInfo_MD_Distribution_MD_DigitalTransferOptions_CI_OnlineResource_linkage  + " ### " + valerr);
+                LOGGER.error("VALIDATION ERR " + this.title + " ### " + gmd_distributionInfo_MD_Distribution_MD_DigitalTransferOptions_CI_OnlineResource_linkage  + " ### " + valerr);
+                System.out.println("VALIDATION ERR " + this.title + " ### " + gmd_distributionInfo_MD_Distribution_MD_DigitalTransferOptions_CI_OnlineResource_linkage  + " ### " + valerr);
             }
-            return false;
+            return validationList;
         }
     }
 
